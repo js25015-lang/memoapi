@@ -1,0 +1,7 @@
+INDEX VERSION 1.4+C:\Users\ft948\OneDrive\Documents\memoapi\.metadata\.plugins\org.eclipse.wst.jsdt.core\indexes
+899458201.index
+3638868576.index
+85232940.index
+2236669848.index
+1641064769.index
+496184750.index

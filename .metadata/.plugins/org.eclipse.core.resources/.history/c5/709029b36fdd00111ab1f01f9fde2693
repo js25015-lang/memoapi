@@ -1,0 +1,61 @@
+package memo.controller;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import memo.service.MemoService;
+
+/**
+ * WebAPI の窓口（Controller）。
+ *   GET    /api/notes        一覧取得
+ *   POST   /api/notes        保存（id が null なら新規、数値なら更新）
+ *   DELETE /api/notes/{id}   論理削除
+ */
+@WebServlet("/api/notes/*")
+public class MemoServlet extends HttpServlet {
+
+    private final MemoService service = new MemoService();
+
+    // TODO: Jackson の設定を行う
+    //  - JavaTimeModule を登録する（jackson-datatype-jsr310）
+    //  - WRITE_DATES_AS_TIMESTAMPS を無効にする
+    //  - FAIL_ON_UNKNOWN_PROPERTIES を false にする
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    /**
+     * ① 一覧取得。
+     * TODO: service.list() の結果を 200 で JSON 配列として返す。SQLException は 500。
+     */
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    }
+
+    /**
+     * ② 保存。
+     * TODO: ボディの JSON を Memo に変換する（失敗したら 400「リクエストの形式が正しくありません」）
+     *       service.save(...) が id を返したら 200 {"success": true, "id": n}
+     *       null が返ったら 400「更新対象のメモが存在しません」。SQLException は 500。
+     */
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    }
+
+    /**
+     * ③ 論理削除。
+     * TODO: パスから id を取り出す（無い・整数でないなら 400「不正なIDフォーマット」）
+     *       service.delete(id) を呼び、対象が無くても 200 {"success": true}。SQLException は 500。
+     */
+    @Override
+    protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    }
+
+    // TODO: private メソッドを作る
+    //  - parseId(req): req.getPathInfo() から id を取り出す。取り出せなければ null
+    //  - writeJson(resp, status, body): ステータスと Content-Type（application/json; charset=UTF-8）を設定して JSON を書き出す
+    //  - success(resp): 200 {"success": true}
+    //  - failure(resp, status, message): {"success": false, "message": "..."}
+    //  - serverError(resp, e): log() に記録し、500「サーバーでエラーが発生しました」
+}

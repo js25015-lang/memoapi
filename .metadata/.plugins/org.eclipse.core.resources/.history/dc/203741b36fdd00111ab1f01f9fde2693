@@ -1,0 +1,142 @@
+package memo.controller;
+
+import java.io.IOException;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
+
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import memo.model.Memo;
+import memo.service.MemoService;
+
+/**
+ * WebAPI の窓口（Controller）。
+ *   GET    /api/notes        一覧取得
+ *   POST   /api/notes        保存（id が null なら新規、数値なら更新）
+ *   DELETE /api/notes/{id}   論理削除
+ */
+@WebServlet("/api/notes/*")
+public class MemoServlet extends HttpServlet {
+
+    private final MemoService service = new MemoService();
+
+    // Jackson の設定を行う
+    private final ObjectMapper mapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+    /**
+     * ① 一覧取得。
+     */
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            List<Memo> list = service.list();
+            writeJson(resp, HttpServletResponse.SC_OK, list);
+        } catch (SQLException e) {
+            serverError(resp, e);
+        }
+    }
+
+    /**
+     * ② 保存。
+     */
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        Memo memo;
+        try {
+            memo = mapper.readValue(req.getInputStream(), Memo.class);
+        } catch (Exception e) {
+            failure(resp, HttpServletResponse.SC_BAD_REQUEST, "リクエストの形式が正しくありません");
+            return;
+        }
+
+        try {
+            Integer id = service.save(memo);
+            if (id != null) {
+                writeJson(resp, HttpServletResponse.SC_OK, Map.of("success", true, "id", id));
+            } else {
+                failure(resp, HttpServletResponse.SC_BAD_REQUEST, "更新対象のメモが存在しません");
+            }
+        } catch (SQLException e) {
+            serverError(resp, e);
+        }
+    }
+
+    /**
+     * ③ 論理削除。
+     */
+    @Override
+    protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        Integer id = parseId(req);
+        if (id == null) {
+            failure(resp, HttpServletResponse.SC_BAD_REQUEST, "不正なIDフォーマット");
+            return;
+        }
+
+        try {
+            service.delete(id);
+            success(resp);
+        } catch (SQLException e) {
+            serverError(resp, e);
+        }
+    }
+
+    // --- Helper Methods ---
+
+    /**
+     * req.getPathInfo() から id を取り出す。取り出せなければ null
+     */
+    private Integer parseId(HttpServletRequest req) {
+        String pathInfo = req.getPathInfo();
+        if (pathInfo == null || pathInfo.equals("/")) {
+            return null;
+        }
+        try {
+            // 先頭の "/" を除去して数値変換（例: "/12" -> "12"）
+            return Integer.parseInt(pathInfo.substring(1));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * ステータスと Content-Type（application/json; charset=UTF-8）を設定して JSON を書き出す
+     */
+    private void writeJson(HttpServletResponse resp, int status, Object body) throws IOException {
+        resp.setStatus(status);
+        resp.setContentType("application/json; charset=UTF-8");
+        mapper.writeValue(resp.getWriter(), body);
+    }
+
+    /**
+     * 200 {"success": true} を返す
+     */
+    private void success(HttpServletResponse resp) throws IOException {
+        writeJson(resp, HttpServletResponse.SC_OK, Map.of("success", true));
+    }
+
+    /**
+     * エラー応答 {"success": false, "message": "..."} を返す
+     */
+    private void failure(HttpServletResponse resp, int status, String message) throws IOException {
+        writeJson(resp, status, Map.of("success", false, "message", message));
+    }
+
+    /**
+     * log() に記録し、500「サーバーでエラーが発生しました」を返す
+     */
+    private void serverError(HttpServletResponse resp, Exception e) throws IOException {
+        log("Internal Server Error", e);
+        failure(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "サーバーでエラーが発生しました");
+    }
+}
